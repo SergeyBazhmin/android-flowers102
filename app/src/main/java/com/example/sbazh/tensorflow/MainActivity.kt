@@ -17,6 +17,7 @@ import android.util.Log
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
+import com.example.sbazh.tensorflow.api.FlickrApiService
 import com.example.sbazh.tensorflow.classifier.*
 import com.example.sbazh.tensorflow.classifier.tensorflow.ImageClassifierFactory
 import com.example.sbazh.tensorflow.utils.ImageUtils
@@ -27,13 +28,15 @@ import java.io.*
 
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var ivImage: ImageView
-    private lateinit var btnSelect: Button
-    private lateinit var btnClassify: Button
-    private lateinit var classLabel: TextView
+    private val ivImage: ImageView by lazy { findViewById<ImageView>(R.id.ivImage) }
+    private val btnSelect: Button by lazy { findViewById<Button>(R.id.btnSelectPhoto) }
+    private val btnClassify: Button by lazy { findViewById<Button>(R.id.btnClassify) }
+    private val btnShow: Button by lazy { findViewById<Button>(R.id.btnShow) }
+    private val classLabel: TextView by lazy { findViewById<TextView>(R.id.classLabel) }
 
     private lateinit var classifier: Classifier
     private lateinit var labels: ArrayList<String>
+    private var flower = ""
 
     companion object {
         val SELECT_FILE = 1
@@ -46,13 +49,13 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        btnSelect = findViewById(R.id.btnSelectPhoto)
-        ivImage = findViewById(R.id.ivImage)
-        classLabel = findViewById(R.id.classLabel)
-        btnClassify = findViewById(R.id.btnClassify)
-
         btnSelect.setOnClickListener { selectImage() }
         btnClassify.setOnClickListener { classifyCurrentImage() }
+        btnShow.setOnClickListener{
+            val intent = Intent(this, ShowImagesActivity::class.java)
+            intent.putExtra("flower",flower)
+            startActivity(intent)
+        }
 
         if (ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED)
         {
@@ -82,13 +85,13 @@ class MainActivity : AppCompatActivity() {
     private fun classifyCurrentImage(){
         val bitmap = (ivImage.drawable as BitmapDrawable).bitmap
         val cropped = ImageUtils.getCroppedBitmap(bitmap)
-        Log.d("CROPPED IMAGE", "${cropped.width} width and ${cropped.height} height")
-        val result = classifier.recognizeImage(cropped)
         doAsync {
             val result = classifier.recognizeImage(cropped)
             uiThread {
-                if (result.confidence >= TRESHHOLD)
+                if (result.confidence >= TRESHHOLD) {
                     classLabel.text = "${result.title} ${result.confidence}"
+                    flower = result.title
+                }
                 else
                     classLabel.text = "It is not a flower"
             }
