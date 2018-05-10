@@ -29,10 +29,19 @@
             <TextView
                 android:id="@+id/wikiText"
                 android:layout_width="match_parent"
-                android:layout_height="499dp"
+                android:layout_height="wrap_content"
+                android:padding="20dp"
                 android:textSize="18sp"
-                tools:layout_editor_absoluteX="163dp"
-                tools:layout_editor_absoluteY="72dp" />
+                tools:layout_editor_absoluteX="8dp"
+                tools:layout_editor_absoluteY="240dp" />
+
+            <TextView
+                android:id="@+id/wikiLinkText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingLeft="20dp"
+                android:paddingRight="20dp"
+                android:textSize="18sp" />
         </LinearLayout>
     </ScrollView>
 
