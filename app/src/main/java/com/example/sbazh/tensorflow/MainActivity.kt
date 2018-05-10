@@ -17,6 +17,7 @@ import android.util.Log
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
+import com.example.sbazh.tensorflow.api.FlickrApiService
 import com.example.sbazh.tensorflow.classifier.*
 import com.example.sbazh.tensorflow.classifier.tensorflow.ImageClassifierFactory
 import com.example.sbazh.tensorflow.utils.ImageUtils
@@ -24,22 +25,18 @@ import com.example.sbazh.tensorflow.utils.Labels
 import org.jetbrains.anko.doAsync
 import org.jetbrains.anko.uiThread
 import java.io.*
-import android.content.ContentValues
-import android.net.Uri
-import java.util.Collections.rotate
-import android.R.attr.bitmap
-import android.graphics.Canvas
-import android.graphics.Matrix
-import android.media.ExifInterface
-import kotlinx.android.synthetic.main.activity_main.*
-
 
 
 class MainActivity : AppCompatActivity() {
+    private val ivImage: ImageView by lazy { findViewById<ImageView>(R.id.ivImage) }
+    private val btnSelect: Button by lazy { findViewById<Button>(R.id.btnSelectPhoto) }
+    private val btnClassify: Button by lazy { findViewById<Button>(R.id.btnClassify) }
+    private val btnShow: Button by lazy { findViewById<Button>(R.id.btnShow) }
+    private val classLabel: TextView by lazy { findViewById<TextView>(R.id.classLabel) }
+
     private lateinit var classifier: Classifier
     private lateinit var labels: ArrayList<String>
     private var flower = ""
-    private lateinit var mCurrentPhotoPath : String
 
     companion object {
         val SELECT_FILE = 1
@@ -52,19 +49,12 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        btnSelectPhoto.setOnClickListener { selectImage() }
+        btnSelect.setOnClickListener { selectImage() }
         btnClassify.setOnClickListener { classifyCurrentImage() }
         btnShow.setOnClickListener{
             val intent = Intent(this, ShowImagesActivity::class.java)
             intent.putExtra("flower",flower)
             startActivity(intent)
-        }
-        btnInfo.setOnClickListener{
-            if (flower.isNotEmpty()) {
-                val intent = Intent(this, WikiInfoActivity::class.java)
-                intent.putExtra("flower", flower)
-                startActivity(intent)
-            }
         }
 
         if (ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED)
@@ -136,19 +126,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun cameraIntent(){
 
-        val values = ContentValues(1)
-        values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpg")
-        val fileUri = contentResolver
-                .insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                        values)
         val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-        if(intent.resolveActivity(packageManager) != null) {
-            mCurrentPhotoPath = fileUri.toString()
-            intent.putExtra(MediaStore.EXTRA_OUTPUT, fileUri)
-            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-            startActivityForResult(intent, REQUEST_CAMERA)
-        }
+        startActivityForResult(intent, REQUEST_CAMERA)
 
     }
 
@@ -160,7 +139,7 @@ class MainActivity : AppCompatActivity() {
             when(requestCode)
             {
                 SELECT_FILE -> onSelectFromGalleryResult(data)
-                REQUEST_CAMERA -> onCaptureImageResult()
+                REQUEST_CAMERA -> onCaptureImageResult(data)
             }
         }
     }
@@ -180,31 +159,23 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    private fun onCaptureImageResult(){
-        val cursor = contentResolver.query(Uri.parse(mCurrentPhotoPath),
-                Array(1) {android.provider.MediaStore.Images.ImageColumns.DATA},
-                null, null, null)
-        cursor.moveToFirst()
-        val photoPath = cursor.getString(0)
-        cursor.close()
-        val file = File(photoPath)
-        val uri = Uri.fromFile(file)
-        val bitmap = MediaStore.Images.Media.getBitmap(this.contentResolver, uri)
-        val exif = ExifInterface(file.absolutePath)
-        val orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
-        lateinit var rotatedBitmap : Bitmap
-        when (orientation) {
-            ExifInterface.ORIENTATION_ROTATE_270 -> rotatedBitmap = rotateImage(bitmap, 270f)
-            ExifInterface.ORIENTATION_ROTATE_180 -> rotatedBitmap = rotateImage(bitmap, 180f)
-            ExifInterface.ORIENTATION_ROTATE_90 -> rotatedBitmap = rotateImage(bitmap, 90f)
-        }
-        ivImage.setImageBitmap(rotatedBitmap)
-    }
+    private fun onCaptureImageResult(data: Intent?){
+        val thumbNail = data?.extras?.get("data") as Bitmap
+        val bytes = ByteArrayOutputStream()
 
-    private fun rotateImage(source: Bitmap, angle: Float): Bitmap {
-        val matrix = Matrix()
-        matrix.postRotate(angle)
-        return Bitmap.createBitmap(source, 0, 0, source.width, source.height,
-                matrix, true)
+        thumbNail.compress(Bitmap.CompressFormat.JPEG,100, bytes)
+        val dest = File(Environment.getExternalStorageDirectory(),
+                "${System.currentTimeMillis()}.jpg")
+        var fo: FileOutputStream
+        try {
+            dest.createNewFile()
+            fo = FileOutputStream(dest)
+            fo.use { it.write(bytes.toByteArray()) }
+        }catch (fe: FileNotFoundException) {
+            fe.printStackTrace()
+        }catch (io: IOException) {
+            io.printStackTrace()
+        }
+        ivImage.setImageBitmap(thumbNail)
     }
 }

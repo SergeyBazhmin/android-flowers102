@@ -7,8 +7,7 @@ import android.view.View
 import android.widget.GridView
 import android.widget.ProgressBar
 import com.example.sbazh.tensorflow.adapters.GridViewAdapter
-import com.github.kittinunf.fuel.httpGet
-import com.github.kittinunf.result.Result
+import com.example.sbazh.tensorflow.api.FlickrApiService
 import org.jetbrains.anko.doAsync
 import org.jetbrains.anko.toast
 import org.jetbrains.anko.uiThread
@@ -29,7 +28,6 @@ class ShowImagesActivity : AppCompatActivity(){
     private val gridViewAdapter by lazy { GridViewAdapter(this,
             R.layout.grid_item_layout,
             gridData) }
-    private val FLICKR_BASE_URL = "https://api.flickr.com/services/rest/?&safe_search=safe&sort=relevance&format=json&nojsoncallback=1"
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,27 +36,46 @@ class ShowImagesActivity : AppCompatActivity(){
 
         gridView.adapter = gridViewAdapter
         var flower = intent.extras.getString("flower")
+        Log.d("lolkek",flower)
         if (flower == "")
             flower = "flower"
-        val FEED_URL =  FLICKR_BASE_URL +
+        val FEED_URL = "https://api.flickr.com/services/rest/?&safe_search=safe&sort=relevance&format=json&nojsoncallback=1" +
                 "&method=flickr.photos.search&text=$flower&api_key=67a33cd303d55e4f567684ba6eedbd84&per_page=26&media=photos&extras=url_s"
 
-        FEED_URL.httpGet().responseString { request, response, result ->
-            //do something with response
-            when (result) {
-                is Result.Failure -> {
-                    val ex = result.getException()
-                    Log.e("SHOW_IMAGES_ACTIVITY", ex.message)
+        doAsync {
+            var res = 0
+            try {
+                val url = URL(FEED_URL)
+                val con = url.openConnection() as HttpURLConnection
+                con.requestMethod = "GET"
+                val code = con.responseCode
+                if (code == 200) {
+                    val reader = BufferedReader(InputStreamReader(con.inputStream))
+                    val json = StringBuffer()
+                    reader.useLines {
+                        it.forEach { json.append(it) }
+                    }
+                    res = 1
+                    parseResponse(json.toString())
                 }
-                is Result.Success -> {
-                    val data = result.get()
-                    parseResponse(data)
-                    gridViewAdapter.setGridData(gridData)
-                    progressBar.visibility = View.GONE
-                }
+                else
+                    res = 0
+            }catch (e: Exception)
+            {
+                Log.e("SHOW_IMAGES_ACTIVITY", e.message)
             }
+            uiThread {
+                if (res == 1)
+                    gridViewAdapter.setGridData(gridData)
+                else
+                    toast("failed to fetch data")
+                progressBar.visibility = View.GONE
+            }
+
         }
+
         progressBar.visibility = View.VISIBLE
+
     }
 
     private fun parseResponse(response: String)
