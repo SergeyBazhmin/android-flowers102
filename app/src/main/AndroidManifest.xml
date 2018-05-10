@@ -3,7 +3,7 @@
     package="com.example.sbazh.tensorflow">
 
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
@@ -21,7 +21,6 @@
             </intent-filter>
         </activity>
         <activity android:name=".ShowImagesActivity" />
-        <activity android:name=".WikiInfoActivity"></activity>
     </application>
 
 </manifest>
