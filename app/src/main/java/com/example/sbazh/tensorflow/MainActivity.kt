@@ -28,11 +28,15 @@ import android.content.ContentValues
 import android.net.Uri
 import java.util.Collections.rotate
 import android.R.attr.bitmap
+import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Matrix
 import android.media.ExifInterface
+import android.net.ConnectivityManager
+import android.opengl.Visibility
+import android.view.View
 import kotlinx.android.synthetic.main.activity_main.*
-
+import org.jetbrains.anko.toast
 
 
 class MainActivity : AppCompatActivity() {
@@ -55,18 +59,26 @@ class MainActivity : AppCompatActivity() {
         btnSelectPhoto.setOnClickListener { selectImage() }
         btnClassify.setOnClickListener { classifyCurrentImage() }
         btnShow.setOnClickListener{
-            val intent = Intent(this, ShowImagesActivity::class.java)
-            intent.putExtra("flower",flower)
-            startActivity(intent)
+            if(isNetworkConnected()) {
+                val intent = Intent(this, ShowImagesActivity::class.java)
+                intent.putExtra("flower", flower)
+                startActivity(intent)
+            } else {
+                toast("Please Connect to the Internet")
+            }
         }
+        btnShow.visibility = View.GONE
         btnInfo.setOnClickListener{
-            if (flower.isNotEmpty()) {
+            if (flower.isNotEmpty() && isNetworkConnected()) {
                 val intent = Intent(this, WikiInfoActivity::class.java)
                 intent.putExtra("flower", flower)
                 startActivity(intent)
+            } else {
+                toast("Please Connect to the Internet")
             }
         }
-
+        btnInfo.visibility = View.GONE
+        classLabel.visibility = View.GONE
         if (ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED)
         {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), MY_PERMISSION_REQUEST_READ_EXTERNAL_STORAGE)
@@ -93,17 +105,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun classifyCurrentImage(){
-        val bitmap = (ivImage.drawable as BitmapDrawable).bitmap
-        val cropped = ImageUtils.getCroppedBitmap(bitmap)
-        doAsync {
-            val result = classifier.recognizeImage(cropped)
-            uiThread {
-                if (result.confidence >= TRESHHOLD) {
-                    classLabel.text = "${result.title} ${result.confidence}"
-                    flower = result.title
+        ivImage.drawable?.let {
+            val bitmap = (it as BitmapDrawable).bitmap
+            val cropped = ImageUtils.getCroppedBitmap(bitmap)
+            doAsync {
+                val result = classifier.recognizeImage(cropped)
+                uiThread {
+                    if (result.confidence >= TRESHHOLD) {
+                        classLabel.text = "${result.title} ${result.confidence}"
+                        flower = result.title
+                        btnShow.visibility = View.VISIBLE
+                        btnInfo.visibility = View.VISIBLE
+                        classLabel.visibility = View.VISIBLE
+                    } else
+                        classLabel.text = "It is not a flower"
                 }
-                else
-                    classLabel.text = "It is not a flower"
             }
         }
     }
@@ -206,5 +222,9 @@ class MainActivity : AppCompatActivity() {
         matrix.postRotate(angle)
         return Bitmap.createBitmap(source, 0, 0, source.width, source.height,
                 matrix, true)
+    }
+    private fun isNetworkConnected() : Boolean{
+        val cm =  getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        return cm.activeNetworkInfo != null
     }
 }
